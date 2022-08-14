@@ -1,27 +1,37 @@
-/* eslint-env node */
-const fs = require("fs");
-const path = require("path");
-const express = require("express");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import express from "express";
 
 const isTest = process.env.NODE_ENV === "test" || !!process.env.VITE_TEST_BUILD;
 
-async function createServer(
+export async function createServer(
   root = process.cwd(),
   isProd = process.env.NODE_ENV === "production",
   hmrPort
 ) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const resolve = (p) => path.resolve(__dirname, p);
 
   const indexProd = isProd
     ? fs.readFileSync(resolve("dist/client/index.html"), "utf-8")
     : "";
-  const manifest = isProd ? require("./dist/client/ssr-manifest.json") : {};
+  const manifest = isProd
+    ? (
+        await import("./dist/client/ssr-manifest.json", {
+          assert: { type: "json" },
+        })
+      ).default
+    : {};
 
+  // const manifest = {};
   const app = express();
 
   let vite;
   if (!isProd) {
-    vite = await require("vite").createServer({
+    vite = await (
+      await import("vite")
+    ).createServer({
       base: "/",
       root,
       logLevel: isTest ? "error" : "info",
@@ -41,8 +51,13 @@ async function createServer(
     });
     app.use(vite.middlewares);
   } else {
-    app.use(require("compression")());
-    app.use(require("serve-static")(resolve("dist/client"), { index: false }));
+    app.use((await import("compression")).default());
+    app.use(
+      "/",
+      (await import("serve-static")).default(resolve("dist/client"), {
+        index: false,
+      })
+    );
   }
 
   app.use("*", async (req, res) => {
@@ -57,7 +72,7 @@ async function createServer(
         render = (await vite.ssrLoadModule("/src/entry-server.ts")).render;
       } else {
         template = indexProd;
-        render = require("./dist/server/entry-server.js").render;
+        render = (await import("./dist/server/entry-server.js")).render;
       }
 
       const [appHtml, preloadLinks] = await render(url, manifest);

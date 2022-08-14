@@ -5,14 +5,13 @@ import {
 } from "vue-router";
 import type { RouteRecordRaw } from "vue-router";
 
-const pages = import.meta.glob("../views/*.vue");
+const pages = import.meta.glob("../pages/*.vue");
 
 const routes: RouteRecordRaw[] = Object.keys(pages).map((path) => {
-  const result = path.match(/\..\/views(.*)\.vue$/);
+  const result = path.match(/\..\/pages(.*)\.vue$/);
   let name = "";
   if (result) {
     name = result[1].toLowerCase();
-    name = name.replace(/view$/, "");
   }
 
   return {
